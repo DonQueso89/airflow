@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+import os
+import sys
+import jinja2
+"""
+Refresh the file served by the http server with all the graphs present.
+"""
+graphs = []
+for date in sys.stdin.read().splitlines():
+    fname = "{}/viz.png".format(date)
+    if os.path.isfile("/Users/keesvanekeren/airflow/www/" + fname):
+        graphs.append({'date': date, 'fname': fname})
+
+loader = jinja2.FileSystemLoader(".")
+env = jinja2.Environment(loader=loader)
+
+with open("../www/index.html", "w+") as outf:
+    outf.write(env.get_template("stats_template.html").render(graphs=graphs))
+
+sys.exit(0)

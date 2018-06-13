@@ -1,0 +1,7 @@
+www/*
+logs/*
+unittests.cfg
+__pycache__
+*.pyc
+airflow.cfg
+airflow.db
