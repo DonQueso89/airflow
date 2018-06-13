@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
@@ -15,6 +16,10 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+PROJECT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+WWW_DATA_DIR = os.path.join(PROJECT_DIR, 'www')
+INDEX_FILE = os.path.join(PROJECT_DIR, 'www', 'index.html')
+
 with DAG(
         dag_id='winrate-from-druid',
         schedule_interval='@daily',
@@ -24,7 +29,7 @@ with DAG(
         catchup=True,
 ) as dag:
     ensure_data_dir_exists_cmd = """
-    mkdir -p /tmp/winrate_stats/{{ ds }}
+    mkdir -p {WWW_DATA_DIR}/{{ ds }}
     """
     ensure_data_dir_exists = BashOperator(
         task_id='ensure_stats_dir_exists',
@@ -46,4 +51,14 @@ with DAG(
         dag=dag
     )
 
-    ensure_data_dir_exists >> get_winrates_from_druid >> convert_stats_to_viz
+    update_index_page = BashOperator(
+        task_id='update_index_page',
+        bash_command='ls {WWW_DATA_DIR} | {PROJECT_DIR}/update_server {INDEX_FILE}'.format(
+            WWW_DATA_DIR,
+            PROJECT_DIR,
+            INDEX_FILE
+        ),
+        dag=dag
+    )
+
+    ensure_data_dir_exists >> get_winrates_from_druid >> convert_stats_to_viz >> update_index_page
