@@ -7,8 +7,8 @@ def visualize_winrates(*args, **kwargs):
     """
     Read backend stats from tmp and store winrates per hour per backend
     """
-    execution_date = kwargs.pop('execution_date').strftime('%Y-%m-%d')
-    df = pd.read_csv("/tmp/winrate_stats/{}/stats.csv".format(execution_date))
+    templates_dict = kwargs.pop('templates_dict')
+    df = pd.read_csv(templates_dict.pop('stats_file'))
     df['winrate'] = df.wins / df.bids.apply(float)
     _, ax = plt.subplots()
     colors = cycle([
@@ -30,7 +30,7 @@ def visualize_winrates(*args, **kwargs):
             y='winrate',
             c=next(colors),
             label=backend,
-            figsize=(20, 10)
+            figsize=(10, 5)
         )
-    ax.legend(loc='best')
-    ax.get_figure().savefig("/tmp/winrate_stats/{}/viz.png".format(execution_date))
+        ax.legend(loc='best', prop={'size': 6})
+    ax.get_figure().savefig(templates_dict.pop('graph_file'))

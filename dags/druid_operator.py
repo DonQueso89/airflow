@@ -9,20 +9,26 @@ class DruidStatsOperator(BaseOperator):
     :param druid_broker_conn_id: The connection id of the Druid broker to query
     :type druid_broker_conn_id: str
     """
-    template_fields = ('intervals',)
+    template_fields = ('intervals', 'stats_file')
 
     def __init__(
             self,
             druid_broker_conn_id='druid_broker_default',
             intervals=None,
+            stats_file=None,
             *args, **kwargs):
         super(DruidStatsOperator, self).__init__(*args, **kwargs)
         self.conn_id = druid_broker_conn_id
         self.intervals = intervals
+        self.stats_file = stats_file
 
     def execute(self, context):
-        client = DruidBrokerHook(druid_broker_conn_id=self.conn_id).get_client()
+        client = DruidBrokerHook(
+            druid_broker_conn_id=self.conn_id
+        ).get_client()
+
         self.log.info("Getting raw data from Druid")
+
         stats = client.groupby(
             datasource='Bids',
             dimensions=['BackendName'],
@@ -36,9 +42,7 @@ class DruidStatsOperator(BaseOperator):
             'timestamp': 'hour',
             'BackendName': 'backend_name',
         })
+
         stats['hour'] = stats.hour.apply(lambda x: x[11:13])
         self.log.info("Storing raw data from Druid")
-        stats.to_csv(
-            "/tmp/winrate_stats/{}/stats.csv".format(self.intervals.split('/')[0]),
-            index=False
-        )
+        stats.to_csv(self.stats_file, index=False)

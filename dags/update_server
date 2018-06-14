@@ -6,15 +6,20 @@ import jinja2
 Refresh the file served by the http server with all the graphs present.
 """
 graphs = []
-for date in sys.stdin.read().splitlines():
-    fname = "{}/viz.png".format(date)
-    if os.path.isfile("/Users/keesvanekeren/airflow/www/" + fname):
-        graphs.append({'date': date, 'fname': fname})
+INDEX_FILE = sys.argv[1]
+WWW_DATA_DIR = sys.argv[2]
+CURRENT_DIR = sys.argv[3]
 
-loader = jinja2.FileSystemLoader(".")
+for date in sys.stdin.read().splitlines():
+    fname = os.path.join(WWW_DATA_DIR, date, "viz.png")
+    img_path = "{}/viz.png".format(date)
+    if os.path.isfile(fname):
+        graphs.append({'date': date, 'fname': img_path})
+
+loader = jinja2.FileSystemLoader(CURRENT_DIR)
 env = jinja2.Environment(loader=loader)
 
-with open("../www/index.html", "w+") as outf:
+with open(INDEX_FILE, "w+") as outf:
     outf.write(env.get_template("stats_template.html").render(graphs=graphs))
 
 sys.exit(0)

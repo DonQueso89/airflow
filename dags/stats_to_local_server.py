@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from druid_operator import DruidStatsOperator
-from converters import visualize_winrates
+from visualize_winrates import visualize_winrates
 
 default_args = {
     'owner': 'user',
@@ -16,9 +16,11 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-PROJECT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-WWW_DATA_DIR = os.path.join(PROJECT_DIR, 'www')
-INDEX_FILE = os.path.join(PROJECT_DIR, 'www', 'index.html')
+CURRENT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+WWW_DATA_DIR = os.path.join(os.path.dirname(CURRENT_DIR), 'www')
+INDEX_FILE = os.path.join(WWW_DATA_DIR, 'index.html')
+STATS_FILE = os.path.join(WWW_DATA_DIR, "{{ ds }}", "stats.csv")
+GRAPH_FILE = os.path.join(WWW_DATA_DIR, "{{ ds }}", "viz.png")
 
 with DAG(
         dag_id='winrate-from-druid',
@@ -29,8 +31,11 @@ with DAG(
         catchup=True,
 ) as dag:
     ensure_data_dir_exists_cmd = """
-    mkdir -p {WWW_DATA_DIR}/{{ ds }}
-    """
+    mkdir -p {WWW_DATA_DIR}/{{{{ ds }}}}
+    """.format(
+        WWW_DATA_DIR=WWW_DATA_DIR
+    )
+
     ensure_data_dir_exists = BashOperator(
         task_id='ensure_stats_dir_exists',
         bash_command=ensure_data_dir_exists_cmd,
@@ -41,23 +46,29 @@ with DAG(
         task_id='download_winrates_from_druid',
         intervals="{{ ds }}/{{ tomorrow_ds }}",
         druid_broker_conn_id='druid_broker_default',
+        stats_file=STATS_FILE,
         dag=dag
     )
 
     convert_stats_to_viz = PythonOperator(
         task_id='convert_csv_to_visualisation',
-        provide_context=True,
         python_callable=visualize_winrates,
+        provide_context=True,
+        templates_dict={'stats_file': STATS_FILE, 'graph_file': GRAPH_FILE},
         dag=dag
+    )
+
+    update_index_cmd = """
+        ls {WWW_DATA_DIR} | {CURRENT_DIR}/update_server {INDEX_FILE} {WWW_DATA_DIR} {CURRENT_DIR}
+    """.format(
+        WWW_DATA_DIR=WWW_DATA_DIR,
+        CURRENT_DIR=CURRENT_DIR,
+        INDEX_FILE=INDEX_FILE
     )
 
     update_index_page = BashOperator(
         task_id='update_index_page',
-        bash_command='ls {WWW_DATA_DIR} | {PROJECT_DIR}/update_server {INDEX_FILE}'.format(
-            WWW_DATA_DIR,
-            PROJECT_DIR,
-            INDEX_FILE
-        ),
+        bash_command=update_index_cmd,
         dag=dag
     )
 
