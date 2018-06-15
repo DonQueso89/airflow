@@ -36,9 +36,17 @@ with DAG(
         WWW_DATA_DIR=WWW_DATA_DIR
     )
 
-    ensure_data_dir_exists = BashOperator(
-        task_id='ensure_stats_dir_exists',
-        bash_command=ensure_data_dir_exists_cmd,
+    update_index_cmd = """
+        ls {WWW_DATA_DIR} | {CURRENT_DIR}/update_server {INDEX_FILE} {WWW_DATA_DIR} {CURRENT_DIR}
+    """.format(
+        WWW_DATA_DIR=WWW_DATA_DIR,
+        CURRENT_DIR=CURRENT_DIR,
+        INDEX_FILE=INDEX_FILE
+    )
+
+    update_index_page = BashOperator(
+        task_id='update_index_page',
+        bash_command=update_index_cmd,
         dag=dag
     )
 
@@ -58,18 +66,8 @@ with DAG(
         dag=dag
     )
 
-    update_index_cmd = """
-        ls {WWW_DATA_DIR} | {CURRENT_DIR}/update_server {INDEX_FILE} {WWW_DATA_DIR} {CURRENT_DIR}
-    """.format(
-        WWW_DATA_DIR=WWW_DATA_DIR,
-        CURRENT_DIR=CURRENT_DIR,
-        INDEX_FILE=INDEX_FILE
-    )
-
-    update_index_page = BashOperator(
-        task_id='update_index_page',
-        bash_command=update_index_cmd,
+    ensure_data_dir_exists = BashOperator(
+        task_id='ensure_stats_dir_exists',
+        bash_command=ensure_data_dir_exists_cmd,
         dag=dag
     )
-
-    ensure_data_dir_exists >> get_winrates_from_druid >> convert_stats_to_viz >> update_index_page
